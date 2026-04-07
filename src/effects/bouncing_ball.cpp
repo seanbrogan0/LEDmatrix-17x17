@@ -6,10 +6,7 @@
 #include "effects.h"
 #include "config.h"
 #include "matrix.h"
-
-// ===== Pin assignments =====
-const uint8_t aVARPIN = A1;   // Left pot: brightness
-const uint8_t bVARPIN = A3;   // Right pot: speed
+#include "input.h"
 
 // ===== Bounce ball state =====
 static int xDIR = 1;   // +1 / -1 horizontal direction
@@ -18,7 +15,7 @@ static int xPos = 0;   // Ball X position
 static int yPos = 2;   // Ball Y position (start inside bounds)
 
 // ===== Timing =====
-static uint16_t frameDelayMs = 20;  // Base delay per frame
+static uint16_t frameDelayMs = 20;  // Frame delay (from input module)
 static uint32_t lastFrameMs  = 0;
 
 // ===== Color palettes =====
@@ -30,22 +27,18 @@ const CRGB ballPalette[] = {
 static uint8_t ballColorIndex = 0;
 static CRGB ballColor = ballPalette[ballColorIndex];
 
+// Boundary colour (solid, not faded)
 static CRGB boundaryColor = CRGB::Blue;
 
 // ===== Main effect entry point =====
 void runBouncingBall() {
   uint32_t now = millis();
 
-  // ----- Read pots -----
-  uint16_t brightRaw = analogRead(aVARPIN);
-  uint16_t speedRaw  = analogRead(bVARPIN);
+  // ----- Read inputs (via input module) -----
+  uint8_t brightness = getBrightness();
+  frameDelayMs       = getFrameDelayMs();
 
-  // Map brightness with a minimum so display never looks "off"
-  uint8_t brightness = map(brightRaw, 0, 1023, 32, 255);
   FastLED.setBrightness(brightness);
-
-  // Map speed (higher pot value = faster animation)
-  frameDelayMs = map(speedRaw, 0, 1023, 60, 10);
 
   // ----- Frame timing -----
   if (now - lastFrameMs < frameDelayMs) return;
@@ -56,8 +49,8 @@ void runBouncingBall() {
 
   // ----- Draw top and bottom boundaries -----
   for (uint8_t i = 0; i < MATRIX_WIDTH; i++) {
-    leds[XY(i, 0)] = boundaryColor;                    // Top boundary
-    leds[XY(i, MATRIX_HEIGHT - 1)] = boundaryColor;    // Bottom boundary
+    leds[XY(i, 0)] = boundaryColor;                     // Top boundary
+    leds[XY(i, MATRIX_HEIGHT - 1)] = boundaryColor;     // Bottom boundary
   }
 
   // ----- Draw ball -----
