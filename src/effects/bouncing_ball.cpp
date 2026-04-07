@@ -4,9 +4,10 @@
 #include <FastLED.h>
 
 #include "effects.h"
-#include "config.h"
 #include "matrix.h"
 #include "input.h"
+#include "config.h"
+#include "globals.h"
 
 // ===== Bounce ball state =====
 static int xDIR = 1;   // +1 / -1 horizontal direction

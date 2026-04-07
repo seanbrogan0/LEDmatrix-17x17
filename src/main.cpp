@@ -4,7 +4,10 @@
 #include "matrix.h"
 #include "effects.h"
 #include "input.h"
+#include "globals.h"
 
+// ===== LED buffer =====
+// Single ownership of the LED array lives here.
 CRGB leds[NUM_LEDS];
 
 void setup() {
