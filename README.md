@@ -1,16 +1,30 @@
-<h1>Diagon Alley Book Nook – LED Control Firmware</h1>
+<!-- ============================= -->
+<!-- Project Status Notice         -->
+<!-- ============================= -->
+
+<div style="border: 2px solid #f0ad4e; padding: 1em; margin-bottom: 1.5em; background-color: #fff8e1;">
+  <p style="margin: 0; font-size: 1.1em;">
+    🚧 <strong>Work in Progress</strong>
+  </p>
+  <p style="margin: 0.5em 0 0 0;">
+    This repository is actively under development. Currently in very early stage. Core architecture is in place,
+    but additional effects, refinements, and documentation are still evolving. Expect failures and bugs everywhere...
+  </p>
+</div>
+
+<h1>LEDmatrix‑17x17 – Serpentine LED Matrix Firmware</h1>
 
 <p>
-An Arduino-based LED control system for a <strong>Diagon Alley–themed book nook</strong>,
-combining custom firmware, addressable LEDs, and 3D‑printed storefront elements
-to create ambient lighting and animated “spell” effects.
+A modular, PlatformIO‑based firmware project for a
+<strong>17×17 serpentine‑wired LED matrix</strong>, designed to support
+multiple standalone animations such as seasonal displays, ambient effects,
+and physics‑based motion.
 </p>
 
 <p>
-This project focuses on <strong>clean firmware architecture</strong>,
-<strong>predictable behaviour</strong>, and
-<strong>physical–digital integration</strong>,
-rather than one‑off Arduino sketches.
+This project prioritises <strong>clean firmware architecture</strong>,
+<strong>hardware abstraction</strong>, and
+<strong>long‑term maintainability</strong> over one‑off Arduino sketches.
 </p>
 
 <hr />
@@ -18,33 +32,17 @@ rather than one‑off Arduino sketches.
 <h2>Project Overview</h2>
 
 <p>
-The book nook represents a small section of Diagon Alley, with individual
-storefronts lit independently:
+The hardware consists of a 17×17 grid of addressable RGB LEDs wired in a
+serpentine pattern. The firmware provides a clean XY coordinate abstraction
+so that all animations can be written in logical 2D space, independent of
+physical wiring order.
 </p>
-
-<ul>
-  <li><strong>Ollivanders</strong></li>
-  <li><strong>Flourish &amp; Blotts</strong></li>
-  <li><strong>Quality Quidditch Supplies</strong></li>
-  <li>Upstairs window lighting</li>
-</ul>
 
 <p>
-The lighting system supports two primary operating modes:
+Rather than maintaining multiple disconnected sketches, this repository
+represents a <strong>single hardware topology</strong> with
+<strong>multiple effects</strong> that can be enabled or extended over time.
 </p>
-
-<ol>
-  <li>
-    <strong>Ambient mode</strong><br />
-    Continuous, candle‑style lighting that responds smoothly to user input.
-  </li>
-  <li>
-    <strong>Spell effects</strong><br />
-    Short, occasionally triggered animation sequences
-    (e.g. <em>Lumos</em>, <em>Incendio</em>, <em>Wingardium&nbsp;Leviosa</em>)
-    that temporarily override ambient lighting before returning to normal.
-  </li>
-</ol>
 
 <hr />
 
@@ -53,9 +51,10 @@ The lighting system supports two primary operating modes:
 <ul>
   <li><strong>Microcontroller:</strong> Arduino Nano (ATmega328P)</li>
   <li><strong>LEDs:</strong> Addressable RGB LEDs (WS2812 / NeoPixel compatible)</li>
-  <li><strong>Inputs:</strong> Single potentiometer for brightness and behaviour control</li>
-  <li><strong>Output:</strong> Multiple LED zones representing storefronts</li>
-  <li><strong>Enclosure:</strong> Custom 3D‑printed book nook with internal light channels</li>
+  <li><strong>Matrix Size:</strong> 17 × 17 (289 LEDs)</li>
+  <li><strong>Wiring:</strong> Serpentine (alternating row direction)</li>
+  <li><strong>Inputs:</strong> Potentiometers and buttons (effect‑dependent)</li>
+  <li><strong>Enclosure:</strong> Custom 3D‑printed frame and diffuser</li>
 </ul>
 
 <hr />
@@ -64,26 +63,24 @@ The lighting system supports two primary operating modes:
 
 <p>
 This project deliberately avoids a monolithic Arduino sketch.
-Instead, the firmware is divided into clear, responsibility‑based modules.
+Instead, the firmware is divided into clearly defined modules,
+each with a single responsibility.
 </p>
 
 <pre>
-firmware/
-├── src/
-│   ├── main.cpp        # System orchestration &amp; control flow
-│   ├── effects.cpp     # Spell and animation effects
-│   ├── storefront.cpp # Ambient storefront lighting
-│   ├── scheduler.cpp  # Timing and effect scheduling
-│   ├── input.cpp      # User input handling &amp; smoothing
-│   └── globals.cpp    # Shared runtime state (single definition)
+src/
+├── main.cpp                  # Application entry point & orchestration
+├── matrix.cpp                # XY → LED index mapping (serpentine wiring)
+├── input.cpp                 # Potentiometer & button handling
+├── effects/
+│   └── bouncing_ball.cpp     # Example animation effect
 │
-├── include/
-│   ├── effects.h
-│   ├── storefront.h
-│   ├── scheduler.h
-│   ├── input.h
-│   ├── globals.h
-│   └── config.h       # Centralised compile‑time configuration
+include/
+├── config.h                  # Matrix size, pins, compile‑time configuration
+├── matrix.h                  # Matrix mapping interface
+├── input.h                   # Input abstraction interface
+├── effects.h                 # Effect entry points
+├── globals.h                 # Shared LED buffer (single definition)
 </pre>
 
 <h3>Design Goals</h3>
@@ -91,20 +88,20 @@ firmware/
 <ul>
   <li>
     <strong>Explicit ownership</strong><br />
-    Every variable has a clear owner. Shared state is declared once and referenced
-    via <code>extern</code>.
+    Hardware resources and shared state are defined exactly once and accessed
+    via clear interfaces.
   </li>
   <li>
     <strong>Separation of concerns</strong><br />
-    Timing, animation logic, input handling, and rendering are not interleaved.
+    Geometry, input handling, animation logic, and rendering are not interleaved.
   </li>
   <li>
     <strong>Scalability</strong><br />
-    New effects, inputs, or storefronts can be added without rewriting core logic.
+    New effects can be added without modifying core infrastructure.
   </li>
   <li>
     <strong>Deterministic behaviour</strong><br />
-    No blocking delays; all timing is based on <code>millis()</code>.
+    No blocking delays; timing is based on <code>millis()</code>.
   </li>
 </ul>
 
@@ -117,51 +114,40 @@ firmware/
 High‑level orchestration only:
 </p>
 <ul>
-  <li>Initialises hardware</li>
-  <li>Calls input, scheduler, and rendering layers</li>
-  <li>Contains no animation or timing policy logic</li>
+  <li>Initialises FastLED and hardware</li>
+  <li>Initialises input handling</li>
+  <li>Calls the active effect once per loop</li>
+  <li>Commits LED buffer to hardware</li>
 </ul>
 
-<h3><code>scheduler.cpp</code></h3>
+<h3><code>matrix.cpp</code></h3>
 <p>
-Controls <strong>when</strong> spell effects:
+Defines the physical layout of the LED matrix:
 </p>
 <ul>
-  <li>Start</li>
-  <li>End</li>
-  <li>Are rate‑limited</li>
-</ul>
-<p>
-No LED logic exists here.
-</p>
-
-<h3><code>effects.cpp</code></h3>
-<p>
-Defines <strong>what spell effects look like</strong>:
-</p>
-<ul>
-  <li>Animations modify LED buffers only</li>
-  <li>No scheduling or hardware access</li>
-</ul>
-
-<h3><code>storefront.cpp</code></h3>
-<p>
-Handles <strong>persistent ambient lighting</strong>:
-</p>
-<ul>
-  <li>Candle flicker</li>
-  <li>Per‑storefront brightness ratios</li>
-  <li>Always‑on visual baseline</li>
+  <li>Maps logical (x, y) coordinates to LED indices</li>
+  <li>Encapsulates serpentine wiring behaviour</li>
+  <li>Allows animations to be written in 2D space</li>
 </ul>
 
 <h3><code>input.cpp</code></h3>
 <p>
-Handles all user input:
+Handles all physical user inputs:
 </p>
 <ul>
   <li>Potentiometer smoothing</li>
-  <li>Raw input abstraction</li>
-  <li>No visual logic</li>
+  <li>Brightness and speed mapping</li>
+  <li>Future expansion for buttons or modes</li>
+</ul>
+
+<h3><code>effects/</code></h3>
+<p>
+Contains individual animation implementations:
+</p>
+<ul>
+  <li>Each effect is self‑contained</li>
+  <li>No direct hardware access</li>
+  <li>Uses matrix and input abstractions only</li>
 </ul>
 
 <h3><code>config.h</code></h3>
@@ -169,10 +155,10 @@ Handles all user input:
 Single source of truth for:
 </p>
 <ul>
-  <li>LED counts</li>
-  <li>Timing limits</li>
-  <li>Brightness ratios</li>
-  <li>Behaviour tuning</li>
+  <li>Matrix dimensions</li>
+  <li>LED count</li>
+  <li>Pin assignments</li>
+  <li>Default tuning values</li>
 </ul>
 
 <hr />
@@ -181,28 +167,32 @@ Single source of truth for:
 
 <ul>
   <li><strong>IDE:</strong> Visual Studio Code</li>
-  <li><strong>Build system:</strong> PlatformIO</li>
+  <li><strong>Build System:</strong> PlatformIO</li>
   <li><strong>Framework:</strong> Arduino (AVR)</li>
-  <li><strong>Key libraries:</strong>
-    <ul>
-      <li>FastLED</li>
-    </ul>
-  </li>
+  <li><strong>Key Library:</strong> FastLED</li>
 </ul>
 
 <p>
-This project is intentionally <strong>PlatformIO‑native</strong>
-and is not designed to be edited or built using the Arduino IDE.
+This project is intentionally <strong>PlatformIO‑native</strong> and is not
+designed to be maintained using the Arduino IDE.
 </p>
 
 <hr />
 
-<h2>3D Printed Parts</h2>
+<h2>CAD & Electronics</h2>
 
 <p>
-3D‑printed components for the book nook (facades, light diffusers,
-structural elements) are designed alongside the firmware and align
-directly with the lighting zones defined in code.
+This repository also contains supporting assets:
+</p>
+
+<ul>
+  <li><strong>3D Models:</strong> Custom frame, grid, diffuser, and legs</li>
+  <li><strong>Circuit:</strong> Fritzing schematic for matrix wiring</li>
+</ul>
+
+<p>
+These assets are designed alongside the firmware to ensure physical layout,
+diffusion, and wiring match the assumptions in code.
 </p>
 
 <hr />
@@ -210,44 +200,35 @@ directly with the lighting zones defined in code.
 <h2>Project Status</h2>
 
 <ul>
-  <li>✅ Firmware architecture complete</li>
-  <li>✅ Modular, warning‑free build</li>
-  <li>✅ Stable ambient and spell behaviour</li>
-  <li>✅ Suitable for long‑term extension</li>
+  <li>✅ Matrix abstraction complete</li>
+  <li>✅ Input handling extracted</li>
+  <li>✅ First effect (Bouncing Ball) ported</li>
+  <li>🚧 Additional effects in progress</li>
 </ul>
 
 <p>
-Potential future enhancements include:
+Planned future work includes:
 </p>
 
 <ul>
-  <li>Additional input controls</li>
-  <li>New spell effects</li>
-  <li>Configuration presets</li>
-  <li>Further memory and performance optimisation</li>
+  <li>Additional seasonal and ambient effects</li>
+  <li>Build‑time or runtime effect selection</li>
+  <li>Button‑driven colour and mode changes</li>
+  <li>Performance and memory optimisation</li>
 </ul>
 
 <hr />
+
 <h2>License</h2>
 
-This project is licensed under the Creative Commons
-Attribution–NonCommercial 4.0 license.
+<p>
+This project is licensed under the
+<strong>Creative Commons Attribution–NonCommercial 4.0</strong> license.
+</p>
 
+<p>
 You are free to use and modify this project for
-non‑commercial purposes only.
-
+<strong>non‑commercial purposes</strong> only.
 Commercial use requires explicit permission from the author.
-See LICENSE for details.
-
-## License
-
-This project is licensed under the Creative Commons
-Attribution–NonCommercial 4.0 license.
-
-You are free to use and modify this project for
-non‑commercial purposes only.
-
-Commercial use requires explicit permission from the author.
-See LICENSE for details.
-
-
+See <code>LICENSE</code> for full details.
+</p>
