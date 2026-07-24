@@ -10,6 +10,11 @@
 // Single ownership of the LED array lives here.
 CRGB leds[NUM_LEDS];
 
+// ===== Shared effect workspace =====
+// Single ownership of the scratch buffer lives here.
+// See globals.h for the usage contract.
+uint8_t scratch[NUM_LEDS];
+
 void setup() {
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
   FastLED.setBrightness(DEFAULT_BRIGHTNESS);
