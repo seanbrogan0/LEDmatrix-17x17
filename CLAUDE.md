@@ -26,23 +26,26 @@ Note: the ATmega328P has 2 KB of RAM and the LED buffer alone uses 867 bytes (28
 
 The firmware is a set of small modules with single ownership of resources, replacing the older monolithic sketches:
 
-- `src/main.cpp` — entry point and orchestration. **Sole definition** of the `CRGB leds[NUM_LEDS]` buffer; the loop is `updateInputs() → run<Effect>() → FastLED.show()`.
-- `include/globals.h` — `extern` declaration of `leds` for effects to use.
+- `src/main.cpp` — entry point and orchestration. **Sole definition** of the `CRGB leds[NUM_LEDS]` buffer and the shared `uint8_t scratch[NUM_LEDS]` workspace; the loop is `updateInputs() → run<Effect>() → FastLED.show()`.
+- `include/globals.h` — `extern` declarations of `leds` and `scratch` for effects to use.
 - `include/config.h` — compile-time configuration: matrix dimensions, `NUM_LEDS`, `DATA_PIN` (D3), default brightness.
 - `src/matrix.cpp` / `include/matrix.h` — `XY(x, y)` maps logical coordinates to physical LED index, encapsulating the serpentine wiring (even rows left→right, odd rows right→left; origin top-left, Y increases downward). Out-of-bounds coordinates clamp to index 0.
-- `src/input.cpp` / `include/input.h` — potentiometer handling (brightness on A1, speed on A3) with 10-sample rolling-average smoothing. Exposes `getBrightness()` and `getFrameDelayMs()`.
-- `src/effects/` — one `.cpp` per animation, each exposing a single `run<Name>()` entry point (e.g. `runBouncingBall()`), declared in `effects.h`. Effects keep their own `static` state and do their own frame timing with `millis()` (non-blocking — never `delay()`).
+- `src/input.cpp` / `include/input.h` — potentiometer handling (brightness on A1, speed on A3), smoothed with an exponential moving average held in an 8×-scaled accumulator. Exposes `getBrightness()` and `getFrameDelayMs()`.
+- `src/effects/` — one `.cpp` per animation, each exposing a single `run<Name>()` entry point (e.g. `runBouncingBall()`), declared in `include/effects.h`. Effects keep their own `static` state and do their own frame timing with `millis()` (non-blocking — never `delay()`).
 
 ### Conventions for effects
 
 - Draw only through `XY(x, y)` — never compute raw LED indices.
 - Read controls only through the input API — never call `analogRead()` directly in an effect.
 - Access the LED buffer via `#include "globals.h"`.
+- Per-cell working state (heat maps, cell grids, trail ages) goes in the shared `scratch[NUM_LEDS]` buffer from `globals.h`, not in new per-effect static arrays — only one effect runs at a time, and a second `CRGB`-sized buffer does not fit in RAM. Initialise the region you use; contents are undefined on entry.
+- Constant data (palettes, sprites, frames) goes in `PROGMEM`, read back with `pgm_read_*`/`memcpy_P` — plain `const` arrays occupy RAM on AVR.
+- Prefer FastLED's 8/16-bit fixed-point math (`sin8`, `beatsin8`, `scale8`, `lerp8by8`) over `float`, which is software-emulated and pulls the soft-float library into flash. The `Old-Code/` sketches use floats freely; convert when porting.
+- Declare each new `run<Name>()` in `include/effects.h`.
 - Effect selection is currently compile-time: `main.cpp` calls one effect's `run` function per loop. Runtime/build-time selection is planned but not implemented.
 
 ### Known inconsistencies
 
-- `effects.h` lives at `src/effects/effects.h` (the README says `include/effects.h`) and is currently **empty** — effect entry points like `runBouncingBall()` still need declarations there for the build to link cleanly.
 - `README.md` describes the intended architecture and project status; keep it in sync when adding effects.
 
 ## Other directories

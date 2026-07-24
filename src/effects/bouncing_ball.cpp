@@ -10,23 +10,28 @@
 #include "globals.h"
 
 // ===== Bounce ball state =====
-static int xDIR = 1;   // +1 / -1 horizontal direction
-static int yDIR = 1;   // +1 / -1 vertical direction
-static int xPos = 0;   // Ball X position
-static int yPos = 2;   // Ball Y position (start inside bounds)
+static int8_t xDIR = 1;   // +1 / -1 horizontal direction
+static int8_t yDIR = 1;   // +1 / -1 vertical direction
+static int8_t xPos = 0;   // Ball X position
+static int8_t yPos = 2;   // Ball Y position (start inside bounds)
 
 // ===== Timing =====
 static uint16_t frameDelayMs = 20;  // Frame delay (from input module)
 static uint32_t lastFrameMs  = 0;
 
 // ===== Color palettes =====
-const CRGB ballPalette[] = {
+// Stored as color codes in flash: const objects otherwise occupy RAM on AVR.
+static const uint32_t ballPalette[] PROGMEM = {
   CRGB::Red, CRGB::Orange, CRGB::Yellow, CRGB::Green,
   CRGB::Aqua, CRGB::Blue, CRGB::Purple, CRGB::HotPink, CRGB::White
 };
 
+static CRGB paletteColor(uint8_t i) {
+  return CRGB(pgm_read_dword(&ballPalette[i]));
+}
+
 static uint8_t ballColorIndex = 0;
-static CRGB ballColor = ballPalette[ballColorIndex];
+static CRGB ballColor = paletteColor(ballColorIndex);
 
 // Boundary colour (solid, not faded)
 static CRGB boundaryColor = CRGB::Blue;
